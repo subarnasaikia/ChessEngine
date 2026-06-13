@@ -13,6 +13,9 @@ RenderWindow::RenderWindow(const char* w_title, int w_width, int w_height)
     
     _renderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
 
+    // Enable alpha blending so translucent highlight overlays composite over
+    // the board and pieces.
+    SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_BLEND);
 }
 
 SDL_Texture* RenderWindow::loadImage(const char* p_filePath)
@@ -69,6 +72,28 @@ void RenderWindow::render(SDL_Texture* p_tex, SDL_Rect* src, SDL_Rect* dst)
     if(p_tex == NULL)
         errorMessage("Texture is null , couldn't find it.");
     SDL_RenderCopy(_renderer, p_tex, src, dst);
+}
+
+void RenderWindow::fillRect(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b, Uint8 a)
+{
+    SDL_SetRenderDrawColor(_renderer, r, g, b, a);
+    SDL_Rect rect = { x, y, w, h };
+    SDL_RenderFillRect(_renderer, &rect);
+}
+
+void RenderWindow::fillCircle(int cx, int cy, int radius, Uint8 r, Uint8 g, Uint8 b, Uint8 a)
+{
+    SDL_SetRenderDrawColor(_renderer, r, g, b, a);
+    const int r2 = radius * radius;
+    for (int dy = -radius; dy <= radius; ++dy)
+        for (int dx = -radius; dx <= radius; ++dx)
+            if (dx * dx + dy * dy <= r2)
+                SDL_RenderDrawPoint(_renderer, cx + dx, cy + dy);
+}
+
+void RenderWindow::setTitle(const char* title)
+{
+    SDL_SetWindowTitle(_window, title);
 }
 
 void RenderWindow::clear()

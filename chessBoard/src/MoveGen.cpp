@@ -141,5 +141,18 @@ void generate(const Position& pos, MoveList& list) {
         generate_all<BLACK>(pos, list);
 }
 
+void generate_legal(Position& pos, MoveList& list) {
+    MoveList pseudo;
+    generate(pos, pseudo);
+
+    const Color us = pos.side_to_move();
+    for (Move m : pseudo) {
+        pos.make_move(m);
+        if (!pos.is_attacked(pos.king_square(us), ~us))
+            list.add(m);
+        pos.unmake_move(m);
+    }
+}
+
 } // namespace movegen
 } // namespace chess

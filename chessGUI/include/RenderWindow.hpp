@@ -13,6 +13,12 @@ namespace chessGUI {
 
             void renderBoard();
 
+            // Alpha-blended overlay primitives (used for move highlights).
+            void fillRect(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+            void fillCircle(int cx, int cy, int radius, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
+
+            void setTitle(const char* title);
+
             void clear();
             void display();
             ~RenderWindow();
