@@ -9,7 +9,7 @@ ChessEngine is a modular C++ chess application. Each module is its own CMake pro
 | Module | Status | What it is |
 |--------|--------|------------|
 | `chessBoard` | Working core | Bitboard engine: move generation, make/unmake, perft. No search/eval yet. |
-| `chessGUI` | Partial | SDL2 renderer. Draws the start position **from the engine** (`chess::Position`); no input or move-making yet. |
+| `chessGUI` | Playable | SDL2 GUI driven by the engine: click-or-drag to move (legal moves only, highlighted), in-window promotion picker, turn alternation, checkmate/stalemate. Human vs human. |
 | `chessBot` | Not present | AI opponent named in the root README roadmap; the directory does not exist yet. |
 
 Keep this table honest as the project grows. Treat a module as "Working" only when something verifiable backs it (e.g. `chessBoard`'s perft suite). Document what exists in code, not roadmap intentions.
@@ -56,15 +56,15 @@ Load-bearing invariants:
 - **Initialize before use.** `attacks::init()` (or `perft::init()`, which calls it) fills the leaper tables and *searches for the magic numbers at runtime* using a fixed PRNG seed. It MUST run once before any attack lookup or any `Position`. Results are deterministic across runs.
 - **Square mapping is LERF**: `square = rank*8 + file`, A1 = 0 … H8 = 63 (`Types.hpp`). Every bitboard, mask, and shift assumes this.
 - **Sliding attacks use magic bitboards** (`Attacks.cpp`): relevant-occupancy mask → magic multiply → table lookup. Pool sizes (102400 rook, 5248 bishop) are asserted during init.
-- **Legality = pseudo-legal + make/unmake.** `movegen::generate` emits pseudo-legal moves (may leave the own king in check). The caller makes the move, tests `is_attacked(king_square(mover), ~mover)`, then unmakes; `Position` holds a `StateInfo` undo stack. **Exception:** castling is fully validated inside the generator (the king may not start in, pass through, or land on an attacked square), because the pass-through square is not covered by a post-move king-safety test.
+- **Legality = pseudo-legal + make/unmake.** `movegen::generate` emits pseudo-legal moves (may leave the own king in check). The caller makes the move, tests `is_attacked(king_square(mover), ~mover)`, then unmakes; `Position` holds a `StateInfo` undo stack. **Exception:** castling is fully validated inside the generator (the king may not start in, pass through, or land on an attacked square), because the pass-through square is not covered by a post-move king-safety test. `movegen::generate_legal` packages this filter and returns only legal moves (used by the GUI; empty result + `in_check()` ⇒ checkmate, else stalemate).
 - **Moves are packed into 16 bits** (`Move.hpp`): to, from, promotion type, and a 2-bit flag (normal / promotion / en passant / castling).
 - **Correctness is proven by perft, not by asserting on internals.** `test/perft_test.cpp` compares node counts against the Chess Programming Wiki reference positions (startpos, Kiwipete, positions 3–6). After any change to move generation or make/unmake, re-run ctest — a divergent perft count is a bug.
 
 ### chessGUI — the renderer
-SDL2. `main.cpp` creates a `RenderWindow`, loads the 12 piece textures into `PieceRender` objects, draws the checkered board, then iterates a `chess::Position` and blits each piece onto its square. The event loop only handles `SDL_QUIT`: the board is drawn once from engine state and is not yet interactive.
+SDL2. `main.cpp` is thin: it initializes SDL and hands off to the `Game` class (`chessGUI/include/Game.hpp`), which owns the `chess::Position`, the current legal moves (`movegen::generate_legal`), and the input state (selection, drag, pending promotion). A blocking `SDL_WaitEvent` loop re-renders after each event. Moving works two ways through one legality check — **click-click** and **drag-and-drop**; the selected square, legal targets, and a checked king are drawn as translucent overlays (`RenderWindow::fillRect`/`fillCircle`); promotion shows an in-window Q/R/B/N picker (click, or press q/r/b/n). `F5` starts a new game, `Esc` cancels a selection. The window title reports whose move it is and check/checkmate/stalemate.
 
 ### Cross-module
-The top-level `CMakeLists.txt` builds both modules and `chessGUI` links the `chessboard` library. `main.cpp` builds a `chess::Position`, calls `chess::attacks::init()`, and draws each square from `piece_on(...)` — rendering is engine-driven, not hard-coded. It maps engine `(color, type)` to the GUI texture table and engine rank/file to screen coordinates (rank 8 on top, so `screenRow = 8 - rank`). Still unbuilt: mouse input and move-making — the GUI can display any position but cannot change it.
+The top-level `CMakeLists.txt` builds both modules and `chessGUI` links the `chessboard` library. The GUI's `Game` drives a `chess::Position` directly: it maps engine `(color, type)` to the GUI texture table and engine rank/file to screen coordinates (rank 8 on top, so `screenRow = 8 - rank`), and enforces legality via `movegen::generate_legal`. What remains unbuilt: an AI opponent (`chessBot`) — games are currently human vs human.
 
 ## Conventions & gotchas
 - **Filename case matters.** `Bitboard.hpp/.cpp` use a lowercase `b`. macOS is case-insensitive, so a mismatched-case `#include` compiles locally but breaks on case-sensitive Linux/CI. Match the on-disk case exactly.
