@@ -44,7 +44,7 @@ Requires CMake, SDL2, and SDL2_image (found via `pkg-config`).
 cd chessGUI && mkdir build && cd build && cmake .. && make
 ./chessGUI
 ```
-- Run it **from the `build/` directory**: piece assets load via paths relative to it (`../res/*.png`, defined in `chessGUI/src/Constants.cpp`).
+- Piece assets resolve via an absolute path baked in at compile time (`CHESS_RES_DIR`, set by `chessGUI/CMakeLists.txt` to `chessGUI/res`), so the executable runs from any directory. `chessGUI/src/Constants.cpp` falls back to `../res` if the define is absent.
 
 ## Architecture
 
