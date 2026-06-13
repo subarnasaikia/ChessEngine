@@ -42,6 +42,11 @@ add_executable(${PROJECT_NAME} ${SRC_FILES})
 # Link SDL2, SDL2_image, and the chess engine core.
 target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} chessboard)
 
+# Absolute path to the piece assets, so the executable finds them no matter
+# which directory it is launched from.
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    CHESS_RES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/res")
+
 message(STATUS "SDL2 include directories: ${SDL2_INCLUDE_DIRS}")
 message(STATUS "SDL2 libraries: ${SDL2_LIBRARIES}")
 message(STATUS "SDL2_image include directories: ${SDL2_IMAGE_INCLUDE_DIRS}")
