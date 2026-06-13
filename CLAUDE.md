@@ -9,14 +9,22 @@ ChessEngine is a modular C++ chess application. Each module is its own CMake pro
 | Module | Status | What it is |
 |--------|--------|------------|
 | `chessBoard` | Working core | Bitboard engine: move generation, make/unmake, perft. No search/eval yet. |
-| `chessGUI` | Partial | SDL2 renderer. Draws the board + starting position; no input handling, not wired to `chessBoard`. |
+| `chessGUI` | Partial | SDL2 renderer. Draws the start position **from the engine** (`chess::Position`); no input or move-making yet. |
 | `chessBot` | Not present | AI opponent named in the root README roadmap; the directory does not exist yet. |
 
 Keep this table honest as the project grows. Treat a module as "Working" only when something verifiable backs it (e.g. `chessBoard`'s perft suite). Document what exists in code, not roadmap intentions.
 
 ## Build & test
 
-There is **no top-level build** — build each module from its own directory.
+The top-level `CMakeLists.txt` builds everything — the engine library, `perft`, `perft_test`, and the GUI:
+```
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+ctest --test-dir build --output-on-failure    # perft regression suite
+./build/chessGUI/chessGUI                      # run the GUI (needs a display)
+```
+Each module can also be configured standalone from its own directory (the GUI's CMake
+pulls in the engine automatically when `chessboard` isn't already a target).
 
 ### chessBoard (engine)
 Requires CMake + a C++17 compiler. No third-party dependencies.
@@ -53,10 +61,10 @@ Load-bearing invariants:
 - **Correctness is proven by perft, not by asserting on internals.** `test/perft_test.cpp` compares node counts against the Chess Programming Wiki reference positions (startpos, Kiwipete, positions 3–6). After any change to move generation or make/unmake, re-run ctest — a divergent perft count is a bug.
 
 ### chessGUI — the renderer
-SDL2. `main.cpp` creates a `RenderWindow`, loads 12 piece textures into `PieceRender` objects, draws the checkered board, and blits both armies onto their starting squares using **hard-coded** rectangles, then runs an event loop that only handles `SDL_QUIT`. There is no move input and no game model — it is a static picture of the opening position.
+SDL2. `main.cpp` creates a `RenderWindow`, loads the 12 piece textures into `PieceRender` objects, draws the checkered board, then iterates a `chess::Position` and blits each piece onto its square. The event loop only handles `SDL_QUIT`: the board is drawn once from engine state and is not yet interactive.
 
 ### Cross-module
-`chessGUI` and `chessBoard` are **not connected**: the GUI holds no reference to the engine and renders from hard-coded coordinates rather than a `Position`. Wiring the renderer to engine state (and adding input handling) is unbuilt work.
+The top-level `CMakeLists.txt` builds both modules and `chessGUI` links the `chessboard` library. `main.cpp` builds a `chess::Position`, calls `chess::attacks::init()`, and draws each square from `piece_on(...)` — rendering is engine-driven, not hard-coded. It maps engine `(color, type)` to the GUI texture table and engine rank/file to screen coordinates (rank 8 on top, so `screenRow = 8 - rank`). Still unbuilt: mouse input and move-making — the GUI can display any position but cannot change it.
 
 ## Conventions & gotchas
 - **Filename case matters.** `Bitboard.hpp/.cpp` use a lowercase `b`. macOS is case-insensitive, so a mismatched-case `#include` compiles locally but breaks on case-sensitive Linux/CI. Match the on-disk case exactly.
