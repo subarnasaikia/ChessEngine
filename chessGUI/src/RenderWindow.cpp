@@ -4,18 +4,28 @@
 using namespace chessGUI;
 
 RenderWindow::RenderWindow(const char* w_title, int w_width, int w_height)
-    :_window(NULL), _renderer(NULL)
+    :_window(NULL), _renderer(NULL), _font(NULL)
 {
     _window = SDL_CreateWindow(w_title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w_width, w_height, SDL_WINDOW_RESIZABLE);
 
     if(_window == NULL)
         errorMessage("SDL Window failed to init.");
-    
+
     _renderer = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
 
     // Enable alpha blending so translucent highlight overlays composite over
     // the board and pieces.
     SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_BLEND);
+
+    // Font for the game-over banner. A missing font is non-fatal: the banner
+    // panel still draws, just without text.
+    if (TTF_Init() != 0)
+        SDL_Log("TTF_Init failed: %s", TTF_GetError());
+    else {
+        _font = TTF_OpenFont(FONT_TTF, 26);
+        if (_font == NULL)
+            SDL_Log("Failed to load font %s: %s", FONT_TTF, TTF_GetError());
+    }
 }
 
 SDL_Texture* RenderWindow::loadImage(const char* p_filePath)
@@ -91,6 +101,25 @@ void RenderWindow::fillCircle(int cx, int cy, int radius, Uint8 r, Uint8 g, Uint
                 SDL_RenderDrawPoint(_renderer, cx + dx, cy + dy);
 }
 
+void RenderWindow::drawTextCentered(const char* text, int cx, int cy, SDL_Color color)
+{
+    if (_font == NULL || text == NULL || text[0] == '\0')
+        return;
+
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(_font, text, color);
+    if (surface == NULL)
+        return;
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(_renderer, surface);
+    SDL_Rect dst = { cx - surface->w / 2, cy - surface->h / 2, surface->w, surface->h };
+    SDL_FreeSurface(surface);
+
+    if (texture != NULL) {
+        SDL_RenderCopy(_renderer, texture, NULL, &dst);
+        SDL_DestroyTexture(texture);
+    }
+}
+
 void RenderWindow::setTitle(const char* title)
 {
     SDL_SetWindowTitle(_window, title);
@@ -109,5 +138,8 @@ void RenderWindow::display()
 
 RenderWindow::~RenderWindow()
 {
+    if (_font != NULL)
+        TTF_CloseFont(_font);
+    TTF_Quit();
     SDL_DestroyWindow(_window);
 }

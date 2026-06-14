@@ -22,4 +22,7 @@ namespace chessGUI {
     extern const char* BLACK_BISHOP_PNG;
     extern const char* BLACK_KNIGHT_PNG;
     extern const char* BLACK_PAWN_PNG;
+
+    // Font used for the game-over banner (bundled in res/, resolved via CHESS_RES_DIR).
+    extern const char* FONT_TTF;
 }

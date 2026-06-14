@@ -20,6 +20,7 @@ struct StateInfo {
     Square    epSquare;       // en-passant target before the move
     int       halfmoveClock;  // halfmove clock before the move
     PieceType captured;       // captured piece type (NO_PIECE_TYPE if none)
+    uint64_t  key;            // Zobrist key before the move
 };
 
 // A full chess position: piece placement plus side to move, castling rights,
@@ -53,6 +54,22 @@ public:
 
     bool can_castle(CastlingRight cr) const { return castling_ & cr; }
 
+    // Incrementally-maintained Zobrist hash of the current position.
+    uint64_t key() const { return key_; }
+
+    // --- Draw conditions ----------------------------------------------------
+    // How many times the current position has occurred so far (including now):
+    // 1 = first time, 3 = threefold. Only the last `halfmove_clock()` plies can
+    // match, so the scan is bounded by that window.
+    int  repetition_count() const;
+
+    // True for dead positions where no checkmate is possible: K vs K,
+    // K + single minor vs K, and bishops-only with every bishop on one color.
+    bool is_insufficient_material() const;
+
+    // True once the halfmove clock reaches 100 (the fifty-move rule).
+    bool is_fifty_move_rule() const { return halfmoveClock_ >= 100; }
+
     // --- Attacks / checks ---------------------------------------------------
     // All pieces (either color) that attack `s`, given occupancy `occ`.
     Bitboard attackers_to(Square s, Bitboard occ) const;
@@ -80,6 +97,9 @@ private:
     Square epSquare_;
     int    halfmoveClock_;
     int    fullmoveNumber_;
+
+    uint64_t key_;                      // Zobrist key of the current position
+    std::vector<uint64_t> repKeys_;     // key after each ply, for repetition
 
     std::vector<StateInfo> history_;
 };

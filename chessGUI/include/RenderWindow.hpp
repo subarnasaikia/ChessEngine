@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 
 namespace chessGUI {
     class RenderWindow {
@@ -17,6 +18,9 @@ namespace chessGUI {
             void fillRect(int x, int y, int w, int h, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
             void fillCircle(int cx, int cy, int radius, Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 
+            // Draw a string centered at (cx, cy). No-op if the font is unavailable.
+            void drawTextCentered(const char* text, int cx, int cy, SDL_Color color);
+
             void setTitle(const char* title);
 
             void clear();
@@ -26,6 +30,7 @@ namespace chessGUI {
         private:
             SDL_Window* _window;
             SDL_Renderer* _renderer;
+            TTF_Font* _font;
     };
 
 }
