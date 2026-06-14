@@ -26,9 +26,11 @@ Handles the graphical user interface for the chess game. Built using:
 - It includes a `CMakeLists.txt` file for building the GUI component.  
 
 ### 3. `chessBot`
-Currently under development, this module aims to provide an AI opponent that can play chess against the user. Future updates will include:
-- Move selection algorithms (e.g., Minimax, Alpha-Beta pruning)
-- Heuristic-based evaluation for positions
+An AI opponent that plays against the user. Implemented with:
+- Negamax **alpha-beta** search with iterative deepening, quiescence, MVV-LVA move ordering, and a transposition table
+- **Heuristic evaluation**: material, tapered piece-square tables, mobility, king safety, and pawn structure
+- A `bot` CLI (`bot "<fen>" --ms 1000`) and a `bot_suite` test target
+- Playable in the GUI (keys `1`/`2`/`3` choose human-vs-human or which side the AI plays)
 ---
 
 ## Design Philosophy
@@ -52,6 +54,7 @@ To build and run ChessEngine, ensure the following dependencies are installed:
 ### GUI Requirements
 - **SDL2**
 - **SDL2_image**
+- **SDL2_ttf** (for the on-board result banner)
 
 ---
 
@@ -80,13 +83,14 @@ To build and run ChessEngine, ensure the following dependencies are installed:
 
 ## Usage
 - Launch the GUI to start a new game.
-- Play against a human opponent using the interface.
-- Stay tuned for updates to include computer opponent functionality!
+- Press `1` for human-vs-human, `2` to play White against the AI, or `3` to play Black against the AI. `F5` starts a new game.
+- Move by clicking a piece then its destination, or by dragging.
 
 ---
 
 ## Roadmap
-- Complete implementation of `chessBot` to enable AI gameplay.
+- Run the bot's search on a background thread so the GUI stays responsive while it thinks.
+- Strengthen the bot (opening book, deeper/smarter search, evaluation tuning).
 - Improve GUI visuals and responsiveness.
 
 ---

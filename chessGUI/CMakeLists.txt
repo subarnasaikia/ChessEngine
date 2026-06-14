@@ -14,6 +14,13 @@ if(NOT TARGET chessboard)
                      ${CMAKE_CURRENT_BINARY_DIR}/chessBoard)
 endif()
 
+# AI opponent. Added after chessBoard so chessBot reuses the existing
+# `chessboard` target rather than adding it twice.
+if(NOT TARGET chessbot)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../chessBot
+                     ${CMAKE_CURRENT_BINARY_DIR}/chessBot)
+endif()
+
 # Include Directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
@@ -40,8 +47,8 @@ link_directories(${SDL2_LIBRARY_DIRS} ${SDL2_IMAGE_LIBRARY_DIRS} ${SDL2_TTF_LIBR
 # Add Executable
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 
-# Link SDL2, SDL2_image, SDL2_ttf, and the chess engine core.
-target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${SDL2_TTF_LIBRARIES} chessboard)
+# Link SDL2, SDL2_image, SDL2_ttf, the chess engine core, and the bot.
+target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${SDL2_TTF_LIBRARIES} chessbot chessboard)
 
 # Absolute path to the piece assets, so the executable finds them no matter
 # which directory it is launched from.
