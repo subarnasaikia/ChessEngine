@@ -36,3 +36,6 @@
 
 # build
 build/
+
+# Local-only brainstorming/design specs (kept out of version control)
+docs/superpowers/

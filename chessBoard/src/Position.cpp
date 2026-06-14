@@ -1,5 +1,7 @@
 #include "Position.hpp"
+#include "Zobrist.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <sstream>
 
@@ -62,14 +64,20 @@ void Position::clear() {
     epSquare_ = SQ_NONE;
     halfmoveClock_ = 0;
     fullmoveNumber_ = 1;
+    key_ = 0;
+    repKeys_.clear();
     history_.clear();
 }
 
+// The three mutators below also fold the piece-square term into the Zobrist
+// key, so make/unmake never have to hash pieces explicitly. They assume
+// zobrist::init() has run (Position::set guarantees it).
 void Position::put_piece(Piece pc, Square s) {
     const Bitboard b = square_bb(s);
     board_[s] = pc;
     byType_[type_of(pc)] |= b;
     byColor_[color_of(pc)] |= b;
+    key_ ^= zobrist::psq[pc][s];
 }
 
 void Position::remove_piece(Square s) {
@@ -78,6 +86,7 @@ void Position::remove_piece(Square s) {
     byType_[type_of(pc)] ^= b;
     byColor_[color_of(pc)] ^= b;
     board_[s] = NO_PIECE;
+    key_ ^= zobrist::psq[pc][s];
 }
 
 void Position::move_piece(Square from, Square to) {
@@ -87,10 +96,12 @@ void Position::move_piece(Square from, Square to) {
     byColor_[color_of(pc)] ^= fromTo;
     board_[from] = NO_PIECE;
     board_[to] = pc;
+    key_ ^= zobrist::psq[pc][from] ^ zobrist::psq[pc][to];
 }
 
 bool Position::set(const std::string& fen) {
     clear();
+    zobrist::init();    // psq tables must exist before put_piece hashes pieces
     std::istringstream ss(fen);
     std::string placement, stm, castle, ep;
     if (!(ss >> placement >> stm >> castle >> ep))
@@ -138,6 +149,13 @@ bool Position::set(const std::string& fen) {
     if (ss >> hm) halfmoveClock_ = hm;
     if (ss >> fm) fullmoveNumber_ = fm;
 
+    // Piece-square terms were accumulated by put_piece during placement; add
+    // the side-to-move, castling, and en-passant terms to complete the key.
+    if (sideToMove_ == BLACK) key_ ^= zobrist::side;
+    key_ ^= zobrist::castling[castling_];
+    if (epSquare_ != SQ_NONE) key_ ^= zobrist::epFile[file_of(epSquare_)];
+
+    repKeys_.push_back(key_);
     return true;
 }
 
@@ -199,6 +217,7 @@ void Position::make_move(Move m) {
     st.epSquare      = epSquare_;
     st.halfmoveClock = halfmoveClock_;
     st.captured      = NO_PIECE_TYPE;
+    st.key           = key_;
 
     const Color us = sideToMove_;
     const Color them = ~us;
@@ -207,6 +226,8 @@ void Position::make_move(Move m) {
     const MoveType mt = m.type();
     const PieceType pt = type_of(board_[from]);
 
+    // Drop the previous en-passant file from the key before clearing it.
+    if (epSquare_ != SQ_NONE) key_ ^= zobrist::epFile[file_of(epSquare_)];
     epSquare_ = SQ_NONE;
     ++halfmoveClock_;
 
@@ -240,11 +261,20 @@ void Position::make_move(Move m) {
         }
     }
 
+    // Castling-rights change: swap the old mask term for the new one.
+    key_ ^= zobrist::castling[castling_];
     castling_ &= cr_mask(from) & cr_mask(to);
+    key_ ^= zobrist::castling[castling_];
+
+    // A new en-passant target (double pawn push) enters the key.
+    if (epSquare_ != SQ_NONE) key_ ^= zobrist::epFile[file_of(epSquare_)];
 
     if (us == BLACK) ++fullmoveNumber_;
     sideToMove_ = them;
+    key_ ^= zobrist::side;
+
     history_.push_back(st);
+    repKeys_.push_back(key_);
 }
 
 void Position::unmake_move(Move m) {
@@ -283,6 +313,42 @@ void Position::unmake_move(Move m) {
     castling_      = st.castling;
     epSquare_      = st.epSquare;
     halfmoveClock_ = st.halfmoveClock;
+    // The piece mutators above also touched key_; discard that and restore the
+    // exact pre-move key, then drop this ply from the repetition history.
+    key_           = st.key;
+    repKeys_.pop_back();
+}
+
+int Position::repetition_count() const {
+    const int n = static_cast<int>(repKeys_.size());
+    // repKeys_.back() is the current position. Only positions reached since the
+    // last irreversible move (capture/pawn move, which reset halfmoveClock_) can
+    // repeat the current one, so scanning that window is exact and sufficient.
+    const int window = std::min(halfmoveClock_, n - 1);
+    int count = 0;
+    for (int i = 0; i <= window; ++i)
+        if (repKeys_[n - 1 - i] == key_)
+            ++count;
+    return count;
+}
+
+bool Position::is_insufficient_material() const {
+    // A pawn, rook, or queen always permits checkmate.
+    if (pieces(PAWN) | pieces(ROOK) | pieces(QUEEN))
+        return false;
+
+    const Bitboard knights = pieces(KNIGHT);
+    const Bitboard bishops = pieces(BISHOP);
+    const int minors = popcount(knights) + popcount(bishops);
+
+    if (minors <= 1)
+        return true;            // K vs K, or king + a single minor vs king
+    if (knights)
+        return false;           // a knight beside any other minor can mate
+
+    // Bishops only: a dead position iff every bishop sits on one color complex.
+    const Bitboard dark = 0xAA55AA55AA55AA55ULL;
+    return !(bishops & dark) || !(bishops & ~dark);
 }
 
 std::string Position::to_string() const {

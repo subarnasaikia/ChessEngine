@@ -74,20 +74,15 @@ void Game::regenerate()
     _legal.count = 0;
     chess::movegen::generate_legal(_pos, _legal);
 
-    if (_legal.size() == 0)
-        _status = _pos.in_check() ? Status::Checkmate : Status::Stalemate;
-    else
-        _status = Status::Ongoing;
+    _outcome = chess::classify(_pos, _legal.size());
 
-    const bool white = (_pos.side_to_move() == chess::WHITE);
+    const chess::Color stm = _pos.side_to_move();
     std::string title = "Chess  -  ";
-    if (_status == Status::Checkmate)
-        title += white ? "Checkmate - Black wins" : "Checkmate - White wins";
-    else if (_status == Status::Stalemate)
-        title += "Stalemate - draw";
-    else {
-        title += white ? "White to move" : "Black to move";
+    if (_outcome == chess::Outcome::Ongoing) {
+        title += (stm == chess::WHITE) ? "White to move" : "Black to move";
         if (_pos.in_check()) title += "  (check)";
+    } else {
+        title += chess::outcome_text(_outcome, stm);
     }
     _window.setTitle(title.c_str());
 }
@@ -214,7 +209,7 @@ void Game::onMouseDown(int x, int y)
         return;
     }
 
-    if (_status != Status::Ongoing)
+    if (_outcome != chess::Outcome::Ongoing)
         return;
 
     const Square sq = squareAt(x, y);
@@ -281,7 +276,7 @@ void Game::onKey(SDL_Keycode key)
 void Game::renderHighlights()
 {
     // King in check.
-    if (_status == Status::Ongoing && _pos.in_check()) {
+    if (_outcome == chess::Outcome::Ongoing && _pos.in_check()) {
         int x, y;
         squareTopLeft(_pos.king_square(_pos.side_to_move()), x, y);
         _window.fillRect(x, y, CELL_PIXEL, CELL_PIXEL, 220, 50, 50, 140);
@@ -345,6 +340,29 @@ void Game::renderPromotionPicker()
     }
 }
 
+void Game::renderGameOverBanner()
+{
+    // Dim the whole board so the result reads clearly.
+    _window.fillRect(CENTER_X, CENTER_Y, BOARD_SIZE, BOARD_SIZE, 0, 0, 0, 150);
+
+    // Centered panel with a light frame.
+    const int panelW = BOARD_SIZE - 80;
+    const int panelH = 96;
+    const int px = CENTER_X + (BOARD_SIZE - panelW) / 2;
+    const int py = CENTER_Y + (BOARD_SIZE - panelH) / 2;
+    _window.fillRect(px, py, panelW, panelH, 28, 28, 32, 235);
+    _window.fillRect(px, py, panelW, 3, 235, 235, 235, 255);
+    _window.fillRect(px, py + panelH - 3, panelW, 3, 235, 235, 235, 255);
+
+    const int cx = CENTER_X + BOARD_SIZE / 2;
+    const SDL_Color result = { 245, 245, 245, 255 };
+    const SDL_Color hint   = { 175, 175, 180, 255 };
+    _window.drawTextCentered(chess::outcome_text(_outcome, _pos.side_to_move()),
+                             cx, py + panelH / 2 - 16, result);
+    _window.drawTextCentered("Press F5 for a new game",
+                             cx, py + panelH / 2 + 18, hint);
+}
+
 void Game::render()
 {
     _window.clear();
@@ -363,6 +381,9 @@ void Game::render()
 
     if (_promoting)
         renderPromotionPicker();
+
+    if (_outcome != chess::Outcome::Ongoing)
+        renderGameOverBanner();
 
     _window.display();
 }

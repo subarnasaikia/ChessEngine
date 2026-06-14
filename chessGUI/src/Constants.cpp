@@ -22,6 +22,8 @@ namespace chessGUI {
     const char* BLACK_KNIGHT_PNG = CHESS_RES_DIR "/black-knight.png";
     const char* BLACK_PAWN_PNG   = CHESS_RES_DIR "/black-pawn.png";
 
+    const char* FONT_TTF         = CHESS_RES_DIR "/DejaVuSans.ttf";
+
     const int CELL_PIXEL = BOARD_SIZE / 8;
     const int CENTER_X = (SCREEN_WIDTH - BOARD_SIZE) / 2;
     const int CENTER_Y = (SCREEN_HEIGHT - BOARD_SIZE) / 2;

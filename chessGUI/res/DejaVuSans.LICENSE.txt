@@ -1,0 +1,10 @@
+DejaVuSans.ttf is part of the DejaVu Fonts project and is bundled here for the
+game-over banner.
+
+The DejaVu fonts are based on the Bitstream Vera Fonts (Copyright (c) 2003 by
+Bitstream, Inc.) and Arev Fonts (Copyright (c) 2006 by Tavmjong Bah). They are
+free to use, redistribute, and modify under the Bitstream Vera / Arev license
+(a permissive, free-software font license). DejaVu changes are in the public
+domain.
+
+Full license text and details: https://dejavu-fonts.github.io/License.html

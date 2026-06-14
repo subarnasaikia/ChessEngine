@@ -8,6 +8,7 @@
 
 #include "Position.hpp"
 #include "MoveGen.hpp"
+#include "Outcome.hpp"
 
 namespace chessGUI {
 
@@ -26,8 +27,6 @@ public:
     void run();
 
 private:
-    enum class Status { Ongoing, Checkmate, Stalemate };
-
     // Setup
     void loadTextures();
     void reset();                 // new game from the start position
@@ -52,6 +51,7 @@ private:
     void renderHighlights();
     void renderPieces();
     void renderPromotionPicker();
+    void renderGameOverBanner();
 
     // Coordinate mapping (board is drawn with rank 8 at the top)
     chess::Square squareAt(int x, int y) const;        // pixel -> square (SQ_NONE if off-board)
@@ -63,7 +63,7 @@ private:
 
     chess::Position _pos;
     chess::MoveList _legal;
-    Status _status = Status::Ongoing;
+    chess::Outcome _outcome = chess::Outcome::Ongoing;
 
     chess::Square _selected = chess::SQ_NONE;
 

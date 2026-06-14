@@ -18,8 +18,10 @@ add_library(chessboard STATIC
     src/Bitboard.cpp
     src/Move.cpp
     src/Attacks.cpp
+    src/Zobrist.cpp
     src/Position.cpp
     src/MoveGen.cpp
+    src/Outcome.cpp
     src/Perft.cpp
 )
 target_include_directories(chessboard PUBLIC ${PROJECT_SOURCE_DIR}/include)
@@ -33,3 +35,8 @@ enable_testing()
 add_executable(perft_test test/perft_test.cpp)
 target_link_libraries(perft_test PRIVATE chessboard)
 add_test(NAME perft_suite COMMAND perft_test)
+
+# Engine-state test: Zobrist key integrity, draw rules, outcome classification.
+add_executable(state_test test/state_test.cpp)
+target_link_libraries(state_test PRIVATE chessboard)
+add_test(NAME state_suite COMMAND state_test)
