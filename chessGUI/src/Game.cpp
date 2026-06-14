@@ -65,8 +65,38 @@ void Game::reset()
     _pos.set(chess::STARTPOS_FEN);
     _promoting = false;
     _dragging = false;
+    _thinking = false;
     clearSelection();
     regenerate();
+    maybePlayAI();   // in HumanVsAI with the bot on White, it moves first
+}
+
+void Game::setMode(Mode mode, chess::Color humanColor)
+{
+    _mode = mode;
+    _humanColor = humanColor;
+    reset();
+}
+
+void Game::maybePlayAI()
+{
+    if (_mode != Mode::HumanVsAI) return;
+    if (_outcome != chess::Outcome::Ongoing) return;
+    if (_pos.side_to_move() == _humanColor) return;   // human's turn
+
+    // Show a "thinking" frame, then search synchronously (the window is
+    // briefly unresponsive for the time budget — acceptable at ~1s).
+    _thinking = true;
+    render();
+
+    const chessbot::SearchResult r = _ai.search(_pos, _aiLimits);
+    _thinking = false;
+
+    if (r.best.is_ok()) {
+        _pos.make_move(r.best);
+        clearSelection();
+        regenerate();
+    }
 }
 
 void Game::regenerate()
@@ -77,13 +107,20 @@ void Game::regenerate()
     _outcome = chess::classify(_pos, _legal.size());
 
     const chess::Color stm = _pos.side_to_move();
-    std::string title = "Chess  -  ";
+
+    std::string mode;
+    if (_mode == Mode::HumanVsHuman)            mode = "Human vs Human";
+    else if (_humanColor == chess::WHITE)       mode = "You: White vs AI";
+    else                                        mode = "AI vs You: Black";
+
+    std::string title = "Chess [" + mode + "]  -  ";
     if (_outcome == chess::Outcome::Ongoing) {
         title += (stm == chess::WHITE) ? "White to move" : "Black to move";
         if (_pos.in_check()) title += "  (check)";
     } else {
         title += chess::outcome_text(_outcome, stm);
     }
+    title += "   (1/2/3: mode, F5: new)";
     _window.setTitle(title.c_str());
 }
 
@@ -148,6 +185,7 @@ void Game::completeMove(Move m)
     _dragging = false;
     clearSelection();
     regenerate();
+    maybePlayAI();
 }
 
 void Game::beginPromotion(Square from, Square to)
@@ -169,6 +207,7 @@ void Game::choosePromotion(chess::PieceType pt)
             _promoting = false;
             _pos.make_move(m);
             regenerate();
+            maybePlayAI();
             return;
         }
     }
@@ -265,7 +304,10 @@ void Game::onKey(SDL_Keycode key)
     }
     switch (key) {
         case SDLK_ESCAPE: clearSelection(); _dragging = false; break;
-        case SDLK_F5:     reset(); break;   // new game
+        case SDLK_F5:     reset(); break;   // new game, same mode
+        case SDLK_1:      setMode(Mode::HumanVsHuman, chess::WHITE); break;
+        case SDLK_2:      setMode(Mode::HumanVsAI,   chess::WHITE); break; // you = White
+        case SDLK_3:      setMode(Mode::HumanVsAI,   chess::BLACK); break; // you = Black
         default: break;
     }
 }
@@ -363,6 +405,15 @@ void Game::renderGameOverBanner()
                              cx, py + panelH / 2 + 18, hint);
 }
 
+void Game::renderThinking()
+{
+    const int barH = 44;
+    const int y = CENTER_Y + (BOARD_SIZE - barH) / 2;
+    _window.fillRect(CENTER_X, y, BOARD_SIZE, barH, 20, 20, 24, 205);
+    const SDL_Color c = { 240, 240, 240, 255 };
+    _window.drawTextCentered("AI thinking...", CENTER_X + BOARD_SIZE / 2, y + barH / 2, c);
+}
+
 void Game::render()
 {
     _window.clear();
@@ -384,6 +435,9 @@ void Game::render()
 
     if (_outcome != chess::Outcome::Ongoing)
         renderGameOverBanner();
+
+    if (_thinking)
+        renderThinking();
 
     _window.display();
 }

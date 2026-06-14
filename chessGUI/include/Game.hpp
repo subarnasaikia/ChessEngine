@@ -9,6 +9,7 @@
 #include "Position.hpp"
 #include "MoveGen.hpp"
 #include "Outcome.hpp"
+#include "Search.hpp"
 
 namespace chessGUI {
 
@@ -27,10 +28,18 @@ public:
     void run();
 
 private:
+    // Opponent configuration. In HumanVsAI the bot plays the color the human
+    // is not. Mode is chosen with the 1/2/3 keys.
+    enum class Mode { HumanVsHuman, HumanVsAI };
+
     // Setup
     void loadTextures();
-    void reset();                 // new game from the start position
+    void reset();                 // new game in the current mode
+    void setMode(Mode mode, chess::Color humanColor);  // new game, switching mode
     void regenerate();            // recompute legal moves, status, window title
+
+    // AI
+    void maybePlayAI();           // if it is the bot's turn, search and move
 
     // Input
     void onMouseDown(int x, int y);
@@ -52,6 +61,7 @@ private:
     void renderPieces();
     void renderPromotionPicker();
     void renderGameOverBanner();
+    void renderThinking();        // "AI thinking…" overlay, shown during search
 
     // Coordinate mapping (board is drawn with rank 8 at the top)
     chess::Square squareAt(int x, int y) const;        // pixel -> square (SQ_NONE if off-board)
@@ -64,6 +74,12 @@ private:
     chess::Position _pos;
     chess::MoveList _legal;
     chess::Outcome _outcome = chess::Outcome::Ongoing;
+
+    Mode               _mode = Mode::HumanVsHuman;
+    chess::Color       _humanColor = chess::WHITE;
+    chessbot::Search   _ai;
+    chessbot::SearchLimits _aiLimits;   // default: ~1000 ms per move
+    bool               _thinking = false;
 
     chess::Square _selected = chess::SQ_NONE;
 

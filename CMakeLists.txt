@@ -17,5 +17,9 @@ enable_testing()
 # target, whose PUBLIC include directory propagates to anything that links it.
 add_subdirectory(chessBoard)
 
-# SDL2 GUI. Links the engine and renders from a chess::Position.
+# AI opponent (evaluation + alpha-beta search). Provides the `chessbot` target,
+# linked by the GUI. Added before chessGUI so that target exists.
+add_subdirectory(chessBot)
+
+# SDL2 GUI. Links the engine and the bot, and renders from a chess::Position.
 add_subdirectory(chessGUI)
